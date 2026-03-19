@@ -464,6 +464,22 @@
 
   .od-legend { display:flex; gap:16px; margin-bottom:12px; font-size:12px; color:var(--text2); }
   .od-legend-dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:middle; }
+
+  .od-view-tabs { display:flex; gap:4px; background:rgba(255,255,255,0.06); border-radius:8px; padding:3px; margin-bottom:16px; }
+  .od-view-tab { padding:6px 14px; border-radius:6px; font-size:12px; font-weight:500; color:var(--text2); cursor:pointer; transition:all 0.2s; border:none; background:none; }
+  .od-view-tab.active { background:var(--accent2); color:#fff; }
+  .od-view-tab:hover:not(.active):not(:disabled) { color:var(--text); background:rgba(255,255,255,0.06); }
+  .od-view-tab:disabled { opacity:0.3; cursor:not-allowed; }
+
+  .od-chart-tooltip { position:absolute; background:rgba(17,21,32,0.95); border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:10px 14px; font-size:12px; pointer-events:none; z-index:10; white-space:nowrap; backdrop-filter:blur(8px); opacity:0; transition:opacity 0.15s; }
+  .od-chart-tooltip.visible { opacity:1; }
+  .od-chart-tooltip .tt-label { color:var(--text2); margin-bottom:4px; }
+  .od-chart-tooltip .tt-value { color:var(--text); font-weight:700; font-family:'Space Mono',monospace; font-size:14px; }
+  .od-chart-tooltip .tt-change { margin-top:3px; font-size:11px; }
+  .od-chart-tooltip .tt-change.up { color:var(--accent); }
+  .od-chart-tooltip .tt-change.down { color:#ff5050; }
+
+  .bar-wrap { position:relative; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -1006,7 +1022,7 @@
   <!-- 매출 흐름 + 진단 요약 -->
   <div class="card-grid grid-2" style="margin-bottom:20px">
     <div class="card">
-      <div class="section-header"><div class="section-title">📈 월별 매출 흐름</div></div>
+      <div class="section-header"><div class="section-title">📈 매출 흐름 분석</div></div>
       <div id="odRevenueTrend"></div>
     </div>
     <div class="card">
@@ -1268,6 +1284,7 @@
 ═══════════════════════════════════ */
 let currentUserType = 'founder'; // 'founder' | 'owner'
 let selectedOnboardType = null;
+let odCurrentView = 'monthly';
 
 /* ═══════════════════════════════════
    CONTENT DATA
@@ -1513,11 +1530,49 @@ const CONTENT = {
         {label:'경쟁 부담 지수',value:'72',unit:'점',interpret:'프랜차이즈 5개, 차별화 전략 필요',change:'▲ 부담 높음',changeClass:'warn',color:'purple'},
       ],
       revenueTrend: {
-        months: [
-          {label:'10월',mine:3120,avg:3350},{label:'11월',mine:3040,avg:3380},{label:'12월',mine:2950,avg:3420},
-          {label:'1월',mine:2870,avg:3400},{label:'2월',mine:2810,avg:3390},{label:'3월',mine:2790,avg:3400}
-        ],
-        interpret: '최근 6개월간 매출이 지속 하락세(-10.6%)이며, 상권 평균과의 격차가 점차 벌어지고 있습니다. 특히 1월 이후 하락 폭이 커지고 있어 즉각적인 개선 조치가 필요합니다.'
+        views: {
+          monthly: {
+            label: '월별',
+            enabled: true,
+            data: [
+              {label:'10월', mine:3120, avg:3350, change:null},
+              {label:'11월', mine:3040, avg:3380, change:-2.6},
+              {label:'12월', mine:2950, avg:3420, change:-3.0},
+              {label:'1월',  mine:2870, avg:3400, change:-2.7},
+              {label:'2월',  mine:2810, avg:3390, change:-2.1},
+              {label:'3월',  mine:2790, avg:3400, change:-0.7}
+            ],
+            interpret: '최근 6개월간 매출이 지속 하락세(-10.6%)이며, 상권 평균과의 격차가 점차 벌어지고 있습니다.'
+          },
+          weekday: {
+            label: '요일별',
+            enabled: true,
+            data: [
+              {label:'월', mine:380, avg:420, change:null},
+              {label:'화', mine:310, avg:410, change:null},
+              {label:'수', mine:340, avg:430, change:null},
+              {label:'목', mine:390, avg:440, change:null},
+              {label:'금', mine:520, avg:480, change:null},
+              {label:'토', mine:480, avg:460, change:null},
+              {label:'일', mine:370, avg:360, change:null}
+            ],
+            interpret: '금요일 매출이 가장 높고, 화·수요일 매출이 상권 평균 대비 가장 낮습니다. 평일 중반 프로모션이 필요합니다.'
+          },
+          hourly: {
+            label: '시간대별',
+            enabled: true,
+            data: [
+              {label:'08-10시', mine:420, avg:380},
+              {label:'10-12시', mine:380, avg:400},
+              {label:'12-14시', mine:580, avg:520},
+              {label:'14-16시', mine:310, avg:390},
+              {label:'16-18시', mine:290, avg:370},
+              {label:'18-20시', mine:250, avg:410},
+              {label:'20-22시', mine:180, avg:350}
+            ],
+            interpret: '점심 시간대(12-14시) 매출이 가장 높으나, 저녁 시간대(18시 이후) 매출이 상권 평균의 50% 수준으로 개선이 필요합니다.'
+          }
+        }
       },
       diagnosis: {
         strengths: ['오전 출근 시간대(8-10시) 매출이 상권 상위 20%','주말 오후 매출이 안정적으로 유지','상주인구 대비 매출 점유율이 양호한 수준'],
@@ -1902,6 +1957,98 @@ function renderFounderDashboard() {
 }
 
 /* ═══════════════════════════════════
+   REVENUE TREND HELPERS
+═══════════════════════════════════ */
+function formatRevenue(val) {
+  if (val >= 10000) return (val / 10000).toFixed(1).replace(/\.0$/, '') + '억원';
+  if (val >= 100) return val.toLocaleString() + '만원';
+  return val + '만원';
+}
+
+function renderRevenueTrend() {
+  const views = CONTENT.owner.ownerDashboard.revenueTrend.views;
+  const viewKeys = Object.keys(views);
+  const current = views[odCurrentView];
+  const data = current.data;
+  const maxVal = Math.max(...data.map(d => Math.max(d.mine, d.avg)));
+
+  const tabsHtml = viewKeys.map(key => {
+    const v = views[key];
+    const isActive = key === odCurrentView ? 'active' : '';
+    const isDisabled = !v.enabled ? 'disabled' : '';
+    return `<button class="od-view-tab ${isActive}" ${isDisabled} onclick="switchRevenueView('${key}')">${v.label}</button>`;
+  }).join('');
+
+  const legendHtml = `<div class="od-legend">
+    <span><span class="od-legend-dot" style="background:var(--accent2)"></span>내 매장</span>
+    <span><span class="od-legend-dot" style="background:rgba(255,255,255,0.2)"></span>상권 평균</span>
+  </div>`;
+
+  const barsHtml = data.map((d, i) => {
+    const hMine = (d.mine / maxVal * 100).toFixed(0);
+    const hAvg = (d.avg / maxVal * 100).toFixed(0);
+    const changeAttr = d.change != null ? `data-change="${d.change}"` : '';
+    return `<div class="bar-wrap" data-label="${d.label}" data-mine="${d.mine}" data-avg="${d.avg}" ${changeAttr}
+      onmouseenter="showRevTooltip(event,this)" onmouseleave="hideRevTooltip()">
+      <div style="display:flex;gap:3px;align-items:flex-end;height:100%">
+        <div class="bar" style="height:${hAvg}%;background:rgba(255,255,255,0.12);width:16px"></div>
+        <div class="bar" style="height:${hMine}%;background:var(--accent2);width:16px"></div>
+      </div>
+      <div class="bar-label">${d.label}</div>
+    </div>`;
+  }).join('');
+
+  const interpretHtml = `<div style="padding:12px;background:var(--card);border-radius:10px;font-size:13px;color:var(--text2);line-height:1.7">
+    💡 ${current.interpret}
+  </div>`;
+
+  document.getElementById('odRevenueTrend').innerHTML =
+    `<div class="od-view-tabs">${tabsHtml}</div>` +
+    legendHtml +
+    `<div class="bar-chart" style="height:140px;margin-bottom:14px;position:relative">${barsHtml}</div>` +
+    `<div id="revTooltip" class="od-chart-tooltip"></div>` +
+    interpretHtml;
+}
+
+function switchRevenueView(view) {
+  odCurrentView = view;
+  renderRevenueTrend();
+}
+
+function showRevTooltip(e, el) {
+  const tooltip = document.getElementById('revTooltip');
+  const label = el.dataset.label;
+  const mine = parseInt(el.dataset.mine);
+  const avg = parseInt(el.dataset.avg);
+  const change = el.dataset.change;
+
+  let html = `<div class="tt-label">${label}</div>`;
+  html += `<div class="tt-value">매출 ${formatRevenue(mine)}</div>`;
+  html += `<div style="font-size:11px;color:var(--text2);margin-top:2px">상권 평균 ${formatRevenue(avg)}</div>`;
+
+  if (change) {
+    const num = parseFloat(change);
+    const cls = num >= 0 ? 'up' : 'down';
+    const sign = num >= 0 ? '+' : '';
+    html += `<div class="tt-change ${cls}">전월 대비 ${sign}${num}%</div>`;
+  }
+
+  tooltip.innerHTML = html;
+  tooltip.classList.add('visible');
+
+  const rect = el.getBoundingClientRect();
+  const chartRect = el.closest('.bar-chart').getBoundingClientRect();
+  tooltip.style.left = (rect.left - chartRect.left + rect.width / 2) + 'px';
+  tooltip.style.top = '-60px';
+  tooltip.style.transform = 'translateX(-50%)';
+}
+
+function hideRevTooltip() {
+  const tooltip = document.getElementById('revTooltip');
+  if (tooltip) tooltip.classList.remove('visible');
+}
+
+/* ═══════════════════════════════════
    OWNER DASHBOARD RENDER
 ═══════════════════════════════════ */
 function renderOwnerDashboard() {
@@ -1932,29 +2079,7 @@ function renderOwnerDashboard() {
     </div>`).join('');
 
   /* Revenue Trend */
-  const rt = od.revenueTrend;
-  const maxRev = Math.max(...rt.months.map(m => Math.max(m.mine, m.avg)));
-  document.getElementById('odRevenueTrend').innerHTML = `
-    <div class="od-legend">
-      <span><span class="od-legend-dot" style="background:var(--accent2)"></span>내 매장</span>
-      <span><span class="od-legend-dot" style="background:rgba(255,255,255,0.2)"></span>상권 평균</span>
-    </div>
-    <div class="bar-chart" style="height:140px;margin-bottom:14px">
-      ${rt.months.map(m => {
-        const hMine = (m.mine / maxRev * 100).toFixed(0);
-        const hAvg = (m.avg / maxRev * 100).toFixed(0);
-        return `<div class="bar-wrap" style="position:relative">
-          <div style="display:flex;gap:3px;align-items:flex-end;height:100%">
-            <div class="bar" style="height:${hAvg}%;background:rgba(255,255,255,0.12);width:16px"></div>
-            <div class="bar" style="height:${hMine}%;background:var(--accent2);width:16px"></div>
-          </div>
-          <div class="bar-label">${m.label}</div>
-        </div>`;
-      }).join('')}
-    </div>
-    <div style="padding:12px;background:var(--card);border-radius:10px;font-size:13px;color:var(--text2);line-height:1.7">
-      📉 ${rt.interpret}
-    </div>`;
+  renderRevenueTrend();
 
   /* Diagnosis */
   const dg = od.diagnosis;
